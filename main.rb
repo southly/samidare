@@ -36,6 +36,7 @@ require 'htree'
 require 'string-util'
 require 'tempfile'
 require 'presen'
+require "rss"
 
 CONFIG_FILENAME = 'config.yml'
 STATUS_FILENAME = 'status.rm'
@@ -43,6 +44,12 @@ STATUS_FILENAME = 'status.rm'
 TEMPLATE_LATEST_FILENAME = 't.latest.html'
 OUTPUT_LATEST_FILENAME = 'latest.html'
 OUTPUT_LIRS_FILENAME = 'sites.lirs.gz'
+OUTPUT_RSS_FILENAME = 'index.rdf'
+
+RSS_ABOUT = 'http://example.com/index.rdf'
+RSS_TITLE = 'Example'
+RSS_DESCRIPTION = 'Example Site'
+RSS_LINK = 'http://example.com/'
 
 AutoFile.directory = 'tmp' # xxx: should be configurable.
 
@@ -1258,9 +1265,30 @@ class Samidare
     output_file(@opt_output_lirs, str)
   end
 
+  def generate_rss(data)
+    rss = RSS::Maker.make("1.0") do |maker|
+      maker.channel.about = RSS_ABOUT
+      maker.channel.title = RSS_TITLE
+      maker.channel.description = RSS_DESCRIPTION
+      maker.channel.link = RSS_LINK
+
+      data["antenna"].sort_by {|e| - e['last-modified'].to_i }.first(30).each {|h|
+        next unless h['last-modified'] && h['last-modified-found']
+
+        item = maker.items.new_item
+        item.link = h['linkURI']
+        item.title = h['title']
+        item.date = h['last-modified']
+      }
+    end
+
+    output_file(@opt_output_rss, rss.to_s)
+  end
+
   def parse_options
     @opt_output = OUTPUT_LATEST_FILENAME
     @opt_output_lirs = OUTPUT_LIRS_FILENAME
+    @opt_output_rss = OUTPUT_RSS_FILENAME
     @opt_dont_check = nil
     @opt_force_check = nil
     @opt_timing = nil
@@ -1280,6 +1308,7 @@ class Samidare
       q.def_option('--force', '-f', 'force check (avoid timing control mechanism)') { @opt_force_check = true }
       q.def_option('--output=filename', '-o', 'specify output html file') {|filename| @opt_output = filename }
       q.def_option('--output-lirs=filename', 'specify output lirs file') {|filename| @opt_output_lirs = filename }
+      q.def_option('--output-rss=filename', 'specify output rss file') {|filename| @opt_output_rss = filename }
       q.def_option('--template=filename', '-T', 'specify template') {|filename| @opt_template = filename }
       q.def_option('--timing', '-t', 'show timings') { @opt_timing = true }
       q.def_option('--dump-config', 'dump flatten configuration') { @opt_dump_config = true }
@@ -1470,6 +1499,11 @@ class Samidare
         STDERR.print "generating lirs..." if $VERBOSE
         t1 = Time.now
         generate_lirs(data)
+        t2 = Time.now
+        STDERR.puts " #{(t2-t1).to_f}sec" if $VERBOSE
+        STDERR.print "generating rss..." if $VERBOSE
+        t1 = Time.now
+        generate_rss(data)
         t2 = Time.now
         STDERR.puts " #{(t2-t1).to_f}sec" if $VERBOSE
       end
