@@ -390,7 +390,7 @@ class Entry
                                '{http://my.netscape.com/rdf/simple/0.9/}link')
         base_uri = URI.parse(log['baseURI'] || @config['URI'])
         link_uri = base_uri + link.extract_text.to_s.strip
-        if link_uri.scheme == 'http' && base_uri.host.downcase == link_uri.host.downcase # xxx: refine safety test
+        if link_uri.scheme.match(/^https?$/) && base_uri.host.downcase == link_uri.host.downcase # xxx: refine safety test
           log['extractedLinkURI'] = link_uri.to_s
         end
       end
@@ -410,7 +410,7 @@ class Entry
             end
           }
           if link_uri and
-              link_uri.scheme == 'http' && base_uri.host.downcase == link_uri.host.downcase # xxx: refine safety test
+              link_uri.scheme.match(/^https?$/) && base_uri.host.downcase == link_uri.host.downcase # xxx: refine safety test
             log['extractedLinkURI'] = link_uri.to_s
             break
           end
